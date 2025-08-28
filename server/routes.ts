@@ -3,7 +3,6 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { chatRequestSchema } from "@shared/schema";
 import { z } from "zod";
-import OpenAI from "openai";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -18,84 +17,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Send message to AI
+  // Send message to AI (simplified for Puter-only)
   app.post("/api/chat", async (req, res) => {
     try {
-      const { message, provider, sessionId, apiKey } = chatRequestSchema.parse(req.body);
+      const { message, model, sessionId } = chatRequestSchema.parse(req.body);
 
       // Store user message
       await storage.createMessage({
         content: message,
         role: "user",
-        provider,
+        model,
         sessionId,
       });
 
-      let aiResponse: string;
-
-      if (provider === "openai" && apiKey) {
-        const openai = new OpenAI({ apiKey });
-        
-        // Get conversation history
-        const messages = await storage.getMessages(sessionId);
-        const conversationHistory = messages.map(msg => ({
-          role: msg.role as "user" | "assistant",
-          content: msg.content
-        }));
-
-        const completion = await openai.chat.completions.create({
-          model: "gpt-5", // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
-          messages: conversationHistory,
-          max_tokens: 1000,
-        });
-
-        aiResponse = completion.choices[0]?.message?.content || "No response received";
-      } else if (provider === "deepseek" && apiKey) {
-        // DeepSeek API integration
-        const messages = await storage.getMessages(sessionId);
-        const conversationHistory = messages.map(msg => ({
-          role: msg.role,
-          content: msg.content
-        }));
-
-        const response = await fetch("https://api.deepseek.com/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: "deepseek-chat",
-            messages: conversationHistory,
-            max_tokens: 1000,
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`DeepSeek API error: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        aiResponse = data.choices[0]?.message?.content || "No response received";
-      } else if (provider === "puter") {
-        // For Puter.js, we'll handle it on the frontend
-        // This endpoint will just store the user message and return success
-        // The frontend will handle the Puter.js API call and then send the response back
-        res.json({ success: true, userMessageStored: true });
-        return;
-      } else {
-        throw new Error("Invalid provider or missing API key");
-      }
-
-      // Store AI response
-      const aiMessage = await storage.createMessage({
-        content: aiResponse,
-        role: "assistant",
-        provider,
-        sessionId,
-      });
-
-      res.json({ message: aiMessage });
+      // For Puter.js, we handle AI calls on the frontend
+      // This endpoint just stores the user message and returns success
+      res.json({ success: true, userMessageStored: true });
     } catch (error) {
       console.error("Chat error:", error);
       if (error instanceof z.ZodError) {
@@ -111,16 +48,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Store AI response from frontend (for Puter.js)
   app.post("/api/ai-response", async (req, res) => {
     try {
-      const { content, provider, sessionId } = req.body;
+      const { content, model, sessionId } = req.body;
       
-      if (!content || !provider || !sessionId) {
+      if (!content || !model || !sessionId) {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
       const aiMessage = await storage.createMessage({
         content,
         role: "assistant",
-        provider,
+        model,
         sessionId,
       });
 

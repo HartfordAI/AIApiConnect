@@ -1,0 +1,333 @@
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Chat Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                borderRadius: {
+                    lg: "var(--radius)",
+                    md: "calc(var(--radius) - 2px)",
+                    sm: "calc(var(--radius) - 4px)",
+                },
+                colors: {
+                    background: "var(--background)",
+                    foreground: "var(--foreground)",
+                    card: {
+                        DEFAULT: "var(--card)",
+                        foreground: "var(--card-foreground)",
+                    },
+                    popover: {
+                        DEFAULT: "var(--popover)",
+                        foreground: "var(--popover-foreground)",
+                    },
+                    primary: {
+                        DEFAULT: "var(--primary)",
+                        foreground: "var(--primary-foreground)",
+                    },
+                    secondary: {
+                        DEFAULT: "var(--secondary)",
+                        foreground: "var(--secondary-foreground)",
+                    },
+                    muted: {
+                        DEFAULT: "var(--muted)",
+                        foreground: "var(--muted-foreground)",
+                    },
+                    accent: {
+                        DEFAULT: "var(--accent)",
+                        foreground: "var(--accent-foreground)",
+                    },
+                    destructive: {
+                        DEFAULT: "var(--destructive)",
+                        foreground: "var(--destructive-foreground)",
+                    },
+                    border: "var(--border)",
+                    input: "var(--input)",
+                    ring: "var(--ring)",
+                },
+                fontFamily: {
+                    sans: ["var(--font-sans)"],
+                    mono: ["var(--font-mono)"],
+                }
+            },
+        }
+    };
+    </script>
+    <style>
+        :root {
+            --background: hsl(220 13% 9%);
+            --foreground: hsl(220 13% 91%);
+            --card: hsl(220 13% 12%);
+            --card-foreground: hsl(220 13% 91%);
+            --popover: hsl(220 13% 12%);
+            --popover-foreground: hsl(220 13% 91%);
+            --primary: hsl(142 86% 28%);
+            --primary-foreground: hsl(220 13% 91%);
+            --secondary: hsl(220 13% 16%);
+            --secondary-foreground: hsl(220 13% 91%);
+            --muted: hsl(220 13% 16%);
+            --muted-foreground: hsl(220 13% 60%);
+            --accent: hsl(142 86% 28%);
+            --accent-foreground: hsl(220 13% 9%);
+            --destructive: hsl(0 63% 31%);
+            --destructive-foreground: hsl(220 13% 91%);
+            --border: hsl(220 13% 20%);
+            --input: hsl(220 13% 16%);
+            --ring: hsl(142 86% 28%);
+            --radius: 0.5rem;
+            --font-sans: 'Inter', system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+        
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+        
+        .message-fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .typing-indicator {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-track {
+            background: var(--muted);
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+        
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+            background: var(--muted-foreground);
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-background text-foreground font-sans">
+    <div class="min-h-screen flex flex-col">
+        <!-- @COMPONENT: Header [configuration and provider selection] -->
+        <header class="bg-card border-b border-border p-4">
+            <div class="max-w-4xl mx-auto">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                            <i class="fas fa-terminal text-primary-foreground text-sm"></i>
+                        </div>
+                        <h1 class="text-xl font-semibold">AI Chat Console</h1>
+                    </div>
+                    
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <!-- Provider Selection -->
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm text-muted-foreground">Provider:</label>
+                            <select class="bg-input border border-border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" data-implementation="Should update API endpoint based on selection">
+                                <option value="openai">ChatGPT</option>
+                                <option value="deepseek">DeepSeek</option>
+                            </select>
+                        </div>
+                        
+                        <!-- API Key Input -->
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm text-muted-foreground">API Key:</label>
+                            <input type="password" placeholder="Enter your API key" 
+                                   class="bg-input border border-border rounded-md px-3 py-1.5 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-ring"
+                                   data-implementation="Should be stored securely in session storage">
+                        </div>
+                        
+                        <!-- Clear Chat Button -->
+                        <button class="bg-destructive hover:bg-destructive/80 text-destructive-foreground px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 flex items-center gap-2"
+                                data-event="click:clearChat" data-implementation="Should clear all messages and reset conversation">
+                            <i class="fas fa-trash text-xs"></i>
+                            Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <!-- @END_COMPONENT: Header -->
+
+        <!-- @COMPONENT: ChatContainer [main chat interface] -->
+        <main class="flex-1 flex flex-col max-w-4xl mx-auto w-full">
+            <!-- Chat Messages Area -->
+            <div class="flex-1 p-4 overflow-y-auto scrollbar-thin" id="chatContainer" data-implementation="Should auto-scroll to bottom on new messages">
+                
+                <!-- Welcome Message -->
+                <div class="text-center py-8 text-muted-foreground" data-mock="true">
+                    <div class="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                        <i class="fas fa-robot text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-medium mb-2">Welcome to AI Chat Console</h3>
+                    <p class="text-sm">Enter your API key above and start chatting with AI</p>
+                </div>
+
+                <!-- @MAP: messages.map(message => ( -->
+                <!-- User Message Example -->
+                <div class="flex justify-end mb-4 message-fade-in" data-mock="true">
+                    <div class="bg-primary text-primary-foreground rounded-lg px-4 py-2 max-w-xs sm:max-w-md lg:max-w-lg font-mono text-sm">
+                        <div class="text-xs opacity-75 mb-1">You</div>
+                        <div data-bind="message.content">What is machine learning?</div>
+                        <div class="text-xs opacity-75 mt-1" data-bind="message.timestamp">2:34 PM</div>
+                    </div>
+                </div>
+
+                <!-- AI Response Example -->
+                <div class="flex justify-start mb-4 message-fade-in" data-mock="true">
+                    <div class="bg-card border border-border rounded-lg px-4 py-2 max-w-xs sm:max-w-md lg:max-w-lg font-mono text-sm">
+                        <div class="text-xs text-muted-foreground mb-1" data-bind="selectedProvider">ChatGPT</div>
+                        <div data-bind="message.content">Machine learning is a subset of artificial intelligence (AI) that focuses on developing algorithms and statistical models that enable computers to improve their performance on a specific task through experience, without being explicitly programmed for every scenario.</div>
+                        <div class="text-xs text-muted-foreground mt-1" data-bind="message.timestamp">2:34 PM</div>
+                    </div>
+                </div>
+
+                <!-- Another User Message -->
+                <div class="flex justify-end mb-4 message-fade-in" data-mock="true">
+                    <div class="bg-primary text-primary-foreground rounded-lg px-4 py-2 max-w-xs sm:max-w-md lg:max-w-lg font-mono text-sm">
+                        <div class="text-xs opacity-75 mb-1">You</div>
+                        <div data-bind="message.content">Can you give me some examples?</div>
+                        <div class="text-xs opacity-75 mt-1" data-bind="message.timestamp">2:35 PM</div>
+                    </div>
+                </div>
+
+                <!-- Loading State Example -->
+                <div class="flex justify-start mb-4" data-mock="true" style="display: none;" id="loadingIndicator">
+                    <div class="bg-card border border-border rounded-lg px-4 py-2 font-mono text-sm">
+                        <div class="text-xs text-muted-foreground mb-1" data-bind="selectedProvider">ChatGPT</div>
+                        <div class="flex items-center gap-2 typing-indicator">
+                            <div class="w-2 h-2 bg-muted-foreground rounded-full"></div>
+                            <div class="w-2 h-2 bg-muted-foreground rounded-full"></div>
+                            <div class="w-2 h-2 bg-muted-foreground rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Message Example -->
+                <div class="flex justify-center mb-4" data-mock="true" style="display: none;" id="errorMessage">
+                    <div class="bg-destructive/10 border border-destructive/20 rounded-lg px-4 py-2 text-destructive text-sm font-mono">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <span data-bind="errorMessage">Failed to connect to API. Please check your API key and try again.</span>
+                    </div>
+                </div>
+                <!-- @END_MAP )) -->
+            </div>
+
+            <!-- Message Input Area -->
+            <div class="border-t border-border p-4">
+                <div class="flex gap-3">
+                    <div class="flex-1">
+                        <textarea 
+                            placeholder="Type your message... (Press Enter to send, Shift+Enter for new line)"
+                            class="w-full bg-input border border-border rounded-lg px-4 py-3 text-sm font-mono resize-none focus:outline-none focus:ring-2 focus:ring-ring min-h-[44px] max-h-32"
+                            rows="1"
+                            data-implementation="Should auto-resize and handle Enter key for sending"
+                            data-event="keydown:handleKeyPress"></textarea>
+                    </div>
+                    <button 
+                        class="bg-primary hover:bg-primary/80 text-primary-foreground px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        data-event="click:sendMessage" 
+                        data-implementation="Should be disabled when API key is missing or message is empty">
+                        <i class="fas fa-paper-plane text-sm"></i>
+                        <span class="hidden sm:inline">Send</span>
+                    </button>
+                </div>
+                
+                <!-- Status Bar -->
+                <div class="flex justify-between items-center mt-2 text-xs text-muted-foreground">
+                    <div class="flex items-center gap-4">
+                        <span data-bind="connectionStatus">
+                            <i class="fas fa-circle text-green-500 mr-1"></i>
+                            Connected
+                        </span>
+                        <span data-bind="messageCount" data-mock="true">3 messages</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <kbd class="bg-muted px-1.5 py-0.5 rounded text-xs">Enter</kbd>
+                        <span>to send</span>
+                        <kbd class="bg-muted px-1.5 py-0.5 rounded text-xs">Shift+Enter</kbd>
+                        <span>new line</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <!-- @END_COMPONENT: ChatContainer -->
+    </div>
+
+    <script>
+        (function() {
+            // TODO: Implement API integration with OpenAI and DeepSeek
+            // TODO: Implement message history management
+            // TODO: Implement API key validation and storage
+            // TODO: Implement real-time message sending and receiving
+            
+            const chatContainer = document.getElementById('chatContainer');
+            const messageInput = document.querySelector('textarea');
+            const sendButton = document.querySelector('button[data-event="click:sendMessage"]');
+            const providerSelect = document.querySelector('select');
+            const apiKeyInput = document.querySelector('input[type="password"]');
+            
+            // Auto-resize textarea
+            messageInput.addEventListener('input', function() {
+                this.style.height = 'auto';
+                this.style.height = Math.min(this.scrollHeight, 128) + 'px';
+            });
+            
+            // Handle Enter key for sending messages
+            messageInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    // TODO: Send message
+                    console.log('Send message:', this.value);
+                    this.value = '';
+                    this.style.height = 'auto';
+                }
+            });
+            
+            // Auto-scroll chat to bottom
+            function scrollToBottom() {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+            
+            // Simulate API key validation
+            apiKeyInput.addEventListener('input', function() {
+                const hasApiKey = this.value.trim().length > 0;
+                sendButton.disabled = !hasApiKey;
+                // TODO: Validate API key format
+            });
+            
+            // Provider switching
+            providerSelect.addEventListener('change', function() {
+                console.log('Provider changed to:', this.value);
+                // TODO: Update API endpoint and clear existing conversation
+            });
+            
+            // Clear chat functionality
+            document.querySelector('button[data-event="click:clearChat"]').addEventListener('click', function() {
+                if (confirm('Are you sure you want to clear the conversation?')) {
+                    // TODO: Clear all messages
+                    console.log('Chat cleared');
+                }
+            });
+            
+            // Initialize
+            scrollToBottom();
+        })();
+    </script>
+</body>
+</html>

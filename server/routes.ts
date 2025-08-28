@@ -33,7 +33,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let aiResponse: string;
 
-      if (provider === "openai") {
+      if (provider === "openai" && apiKey) {
         const openai = new OpenAI({ apiKey });
         
         // Get conversation history
@@ -50,7 +50,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         aiResponse = completion.choices[0]?.message?.content || "No response received";
-      } else if (provider === "deepseek") {
+      } else if (provider === "deepseek" && apiKey) {
         // DeepSeek API integration
         const messages = await storage.getMessages(sessionId);
         const conversationHistory = messages.map(msg => ({
@@ -77,8 +77,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const data = await response.json();
         aiResponse = data.choices[0]?.message?.content || "No response received";
+      } else if (provider === "puter") {
+        // For Puter.js, we'll handle it on the frontend
+        // This endpoint will just store the user message and return success
+        // The frontend will handle the Puter.js API call and then send the response back
+        res.json({ success: true, userMessageStored: true });
+        return;
       } else {
-        throw new Error("Invalid provider");
+        throw new Error("Invalid provider or missing API key");
       }
 
       // Store AI response
@@ -99,6 +105,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(500).json({ error: "Failed to process chat message" });
       }
+    }
+  });
+
+  // Store AI response from frontend (for Puter.js)
+  app.post("/api/ai-response", async (req, res) => {
+    try {
+      const { content, provider, sessionId } = req.body;
+      
+      if (!content || !provider || !sessionId) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      const aiMessage = await storage.createMessage({
+        content,
+        role: "assistant",
+        provider,
+        sessionId,
+      });
+
+      res.json({ message: aiMessage });
+    } catch (error) {
+      console.error("AI response storage error:", error);
+      res.status(500).json({ error: "Failed to store AI response" });
     }
   });
 

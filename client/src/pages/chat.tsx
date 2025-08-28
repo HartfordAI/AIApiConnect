@@ -10,11 +10,11 @@ import { apiRequest } from "@/lib/queryClient";
 import type { Message, ChatRequest } from "@shared/schema";
 import { Terminal, Send, Trash2, Circle, Keyboard } from "lucide-react";
 
-type Provider = "openai" | "deepseek";
+type Provider = "openai" | "deepseek" | "puter";
 
 export default function Chat() {
   const [message, setMessage] = useState("");
-  const [provider, setProvider] = useState<Provider>("openai");
+  const [provider, setProvider] = useState<Provider>("puter");
   const [apiKey, setApiKey] = useState("");
   const [sessionId] = useState(() => `session-${Date.now()}`);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -45,8 +45,39 @@ export default function Chat() {
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async (chatRequest: ChatRequest) => {
-      const response = await apiRequest("POST", "/api/chat", chatRequest);
-      return response.json();
+      if (chatRequest.provider === "puter") {
+        // Handle Puter.js directly in frontend
+        const messages = await queryClient.getQueryData<Message[]>(["/api/messages", sessionId]) || [];
+        const conversationHistory = messages.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
+        
+        // Add current message to history
+        conversationHistory.push({ role: "user", content: chatRequest.message });
+        
+        // Call Puter.js API
+        // @ts-ignore - puter is loaded from external script
+        const response = await window.puter.ai.chat(conversationHistory, {
+          model: "gpt-4o",
+          max_tokens: 1000
+        });
+        
+        const aiContent = response.message?.content || response.toString() || "No response received";
+        
+        // Store the AI response in backend
+        await apiRequest("POST", "/api/ai-response", {
+          content: aiContent,
+          provider: "puter",
+          sessionId
+        });
+        
+        return { success: true };
+      } else {
+        // Handle OpenAI and DeepSeek through backend
+        const response = await apiRequest("POST", "/api/chat", chatRequest);
+        return response.json();
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/messages", sessionId] });
@@ -106,7 +137,17 @@ export default function Chat() {
   };
 
   const handleSendMessage = () => {
-    if (!message.trim() || !apiKey.trim() || sendMessageMutation.isPending) {
+    if (!message.trim() || sendMessageMutation.isPending) {
+      return;
+    }
+    
+    // For puter, no API key required, for others, API key is required
+    if (provider !== "puter" && !apiKey.trim()) {
+      toast({
+        title: "Error",
+        description: "API key is required for this provider",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -114,7 +155,7 @@ export default function Chat() {
       message: message.trim(),
       provider,
       sessionId,
-      apiKey,
+      apiKey: provider === "puter" ? undefined : apiKey,
     });
   };
 
@@ -131,8 +172,8 @@ export default function Chat() {
     });
   };
 
-  const isConnected = !!apiKey.trim();
-  const canSend = message.trim() && apiKey.trim() && !sendMessageMutation.isPending;
+  const isConnected = provider === "puter" ? true : !!apiKey.trim();
+  const canSend = message.trim() && (provider === "puter" || apiKey.trim()) && !sendMessageMutation.isPending;
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -156,24 +197,27 @@ export default function Chat() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="puter">Puter AI (Free)</SelectItem>
                     <SelectItem value="openai">ChatGPT</SelectItem>
                     <SelectItem value="deepseek">DeepSeek</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               
-              {/* API Key Input */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-muted-foreground">API Key:</label>
-                <Input
-                  type="password"
-                  placeholder="Enter your API key"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  className="w-48"
-                  data-testid="input-api-key"
-                />
-              </div>
+              {/* API Key Input - only show for providers that need it */}
+              {provider !== "puter" && (
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-muted-foreground">API Key:</label>
+                  <Input
+                    type="password"
+                    placeholder="Enter your API key"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="w-48"
+                    data-testid="input-api-key"
+                  />
+                </div>
+              )}
               
               {/* Clear Chat Button */}
               <Button
@@ -202,7 +246,12 @@ export default function Chat() {
                 <Terminal className="w-8 h-8" />
               </div>
               <h3 className="text-lg font-medium mb-2">Welcome to AI Chat Console</h3>
-              <p className="text-sm">Enter your API key above and start chatting with AI</p>
+              <p className="text-sm">
+                {provider === "puter" 
+                  ? "Start chatting with AI for free using Puter" 
+                  : "Enter your API key above and start chatting with AI"
+                }
+              </p>
             </div>
           )}
 
@@ -225,7 +274,14 @@ export default function Chat() {
                 <div className={`text-xs mb-1 ${
                   msg.role === "user" ? "opacity-75" : "text-muted-foreground"
                 }`}>
-                  {msg.role === "user" ? "You" : provider === "openai" ? "ChatGPT" : "DeepSeek"}
+                  {msg.role === "user" 
+                    ? "You" 
+                    : msg.provider === "openai" 
+                      ? "ChatGPT" 
+                      : msg.provider === "deepseek" 
+                        ? "DeepSeek" 
+                        : "Puter AI"
+                  }
                 </div>
                 <div className="whitespace-pre-wrap">{msg.content}</div>
                 <div className={`text-xs mt-1 ${
@@ -242,7 +298,7 @@ export default function Chat() {
             <div className="flex justify-start mb-4" data-testid="loading-indicator">
               <div className="bg-card border border-border rounded-lg px-4 py-2 font-mono text-sm">
                 <div className="text-xs text-muted-foreground mb-1">
-                  {provider === "openai" ? "ChatGPT" : "DeepSeek"}
+                  {provider === "openai" ? "ChatGPT" : provider === "deepseek" ? "DeepSeek" : "Puter AI"}
                 </div>
                 <div className="flex items-center gap-2 typing-indicator">
                   <div className="w-2 h-2 bg-muted-foreground rounded-full animate-pulse"></div>

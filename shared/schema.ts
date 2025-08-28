@@ -13,7 +13,7 @@ export const messages = pgTable("messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   content: text("content").notNull(),
   role: text("role").notNull(), // 'user' or 'assistant'
-  provider: text("provider").notNull(), // 'openai' or 'deepseek'
+  provider: text("provider").notNull(), // 'openai', 'deepseek', or 'puter'
   timestamp: timestamp("timestamp").defaultNow().notNull(),
   sessionId: text("session_id").notNull(),
 });
@@ -37,9 +37,9 @@ export type Message = typeof messages.$inferSelect;
 
 export const chatRequestSchema = z.object({
   message: z.string().min(1),
-  provider: z.enum(['openai', 'deepseek']),
+  provider: z.enum(['openai', 'deepseek', 'puter']),
   sessionId: z.string(),
-  apiKey: z.string().min(1),
+  apiKey: z.string().optional(),
 });
 
 export type ChatRequest = z.infer<typeof chatRequestSchema>;

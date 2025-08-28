@@ -19,6 +19,8 @@ const PUTER_MODELS = [
   { value: "claude-3-5-haiku", label: "Claude 3.5 Haiku" },
   { value: "deepseek-chat", label: "DeepSeek Chat" },
   { value: "deepseek-reasoner", label: "DeepSeek Reasoner" },
+  { value: "deepseek-v3", label: "DeepSeek V3.1" },
+  { value: "grok-beta", label: "Grok" },
   { value: "gemini-2.0-flash-exp", label: "Gemini 2.0 Flash" },
   { value: "o1", label: "OpenAI o1" },
   { value: "o1-mini", label: "OpenAI o1 Mini" },

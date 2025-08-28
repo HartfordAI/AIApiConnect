@@ -12,6 +12,7 @@ import { Terminal, Send, Trash2, Circle, Keyboard } from "lucide-react";
 
 // Available Puter AI models
 const PUTER_MODELS = [
+  { value: "gpt-5", label: "ChatGPT 5" },
   { value: "gpt-4o", label: "GPT-4o" },
   { value: "gpt-4o-mini", label: "GPT-4o Mini" },
   { value: "claude-3-5-sonnet", label: "Claude 3.5 Sonnet" },
@@ -25,7 +26,7 @@ const PUTER_MODELS = [
 
 export default function Chat() {
   const [message, setMessage] = useState("");
-  const [selectedModel, setSelectedModel] = useState("gpt-4o");
+  const [selectedModel, setSelectedModel] = useState("gpt-5");
   const [sessionId] = useState(() => `session-${Date.now()}`);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
